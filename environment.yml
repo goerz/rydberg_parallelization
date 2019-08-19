@@ -1,0 +1,28 @@
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - jupyter_nbextensions_configurator
+  - jupyterlab
+  - click
+  - cython
+  - ipython
+  - jupyter
+  - matplotlib
+  - numpy
+  - pandas
+  - pandoc
+  - python=3.7
+  - scipy
+  - sympy
+  - bokeh
+  - qutip==4.4.1
+  - pytest
+  - pip:
+    - gprof2dot
+    - nbdiff
+    - nbdime
+    - notedown
+    - version-information
+    - pytest-xdist
+    - pdbpp
