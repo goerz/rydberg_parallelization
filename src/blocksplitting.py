@@ -1,5 +1,5 @@
 """Code for splitting up the Hamiltonian into blocks"""
-from qutip import Qobj
+from qutip import Qobj, qdiags
 import numpy as np
 import scipy.sparse
 
@@ -123,3 +123,81 @@ def split_AB_blocks(m, block_info, n, as_qobj=False):
             block = Qobj(block)
         AB[selector].append(block)
     return AB[0], AB[1]
+
+
+def split_list(lst, n):
+    """Split the given `lst` into `n` chunks"""
+    splitted = []
+    for i in reversed(range(1, n + 1)):
+        split_point = len(lst) // i
+        splitted.append(lst[:split_point])
+        lst = lst[split_point:]
+    return splitted
+
+
+def split_diagonal_hamiltonian(H0, n_blocks):
+    """Split a diagonal Hamiltonian into blocks"""
+    diag_data = H0.diag()
+    assert (H0 - qdiags(diag_data, 0)).data.nnz == 0
+    res = []
+    for i in range(n_blocks):
+        res.append(diag_data.copy())
+        for j in range(n_blocks):
+            if i == j:
+                continue
+            res[-1][split_list(range(len(diag_data)), n_blocks)[j]] = 0
+        res[-1] = qdiags(res[-1], 0)
+    return res
+
+
+def balance_threads(thread_bins, thread_filled, i, j):
+    assert i < j
+    avg = 0.5 * (thread_filled[i] + thread_filled[j])
+    if thread_filled[i] > thread_filled[j]:
+        while thread_filled[i] > avg:
+            block = thread_bins[i].pop()
+            thread_bins[j].insert(0, block)
+            thread_filled[i] -= block.data.nnz
+            thread_filled[j] += block.data.nnz
+    elif thread_filled[i] < thread_filled[j]:
+        while thread_filled[i] < avg:
+            block = thread_bins[j].pop(0)
+            thread_bins[i].append(block)
+            thread_filled[j] -= block.data.nnz
+            thread_filled[i] += block.data.nnz
+
+
+def distribute_keep_together(list_of_blocks, n_threads):
+    total_nnz = sum([block.data.nnz for block in list_of_blocks])
+    nnz_per_thread = total_nnz / n_threads
+    thread_bins = [[] for _ in range(n_threads)]
+    thread_filled = np.array([0 for _ in range(n_threads)])
+    i_thread = 0
+    for block in list_of_blocks:
+        if (thread_filled[i_thread] + 0.5 * block.data.nnz) >= nnz_per_thread:
+            i_thread = min(i_thread + 1, n_threads - 1)
+        thread_bins[i_thread].append(block)
+        thread_filled[i_thread] += block.data.nnz
+    sigma0 = (
+        np.sum(np.abs(np.array(thread_filled) - nnz_per_thread))
+    ) / n_threads
+    while True:
+        thread_bins_prev = thread_bins.copy()
+        thread_filled_prev = thread_filled.copy()
+        for i_thread in reversed(range(1, n_threads)):
+            balance_threads(thread_bins, thread_filled, i_thread - 1, i_thread)
+        sigma = (
+            np.sum(np.abs(np.array(thread_filled) - nnz_per_thread))
+        ) / n_threads
+        for i_thread in range(1, n_threads):
+            balance_threads(thread_bins, thread_filled, i_thread - 1, i_thread)
+        sigma = (
+            np.sum(np.abs(np.array(thread_filled) - nnz_per_thread))
+        ) / n_threads
+        if sigma >= sigma0:
+            thread_bins = thread_bins_prev
+            thread_filled = thread_filled_prev
+            break
+        else:
+            sigma0 = sigma
+    return thread_bins
