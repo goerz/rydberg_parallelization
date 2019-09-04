@@ -1,0 +1,45 @@
+!pivot_ladder = lowest+ in the  Hamiltonian, but we need lowest for write_pivots
+!validity_factor = 1
+tgrid: t_start=0_ns, t_stop = 113_ns, nt = 1131, fixed = T
+
+pulse: t_start = 0_ns, t_stop = 113_ns, E_0 = 0_Vpcm, w_L = 0_MHz
+ * type = const, oct_outfile = pulse_pi.out, oct_lambda_a = 1d60,              &
+&  is_complex = F, oct_increase_factor = 5.0, oct_shape = const,               &
+&  oct_pulse_max = 2.56_Vpcm, oct_pulse_min = 2.54_Vpcm,                       &
+&  time_unit = ns, ampl_unit = Vpcm, id = 1, optimize = F
+ * type = const, oct_outfile = pulse_sig.out, oct_lambda_a = 4d13,             &
+&  is_complex = T, oct_increase_factor = 5.0, oct_shape = flattop,             &
+&  time_unit = ns, ampl_unit = Vpcm, id = 2,                                   &
+&  oct_pulse_max = 0.025_Vpcm, oct_pulse_min = -0.025_Vpcm,                    &
+&  t_rise = 10_ns, t_fall = 10_ns, optimize = T
+ * type = const, oct_outfile = pulse_pi_ac.out, oct_lambda_a = 1d60,           &
+&  is_complex = F, oct_increase_factor = 5.0, oct_shape = const,               &
+&  oct_pulse_max = 0.0001_Vpcm, oct_pulse_min = 0_Vpcm,                        &
+&  time_unit = ns, ampl_unit = Vpcm, id = 3, optimize = F
+ * type = const, oct_outfile = pulse_sig_statac.out, oct_lambda_a = 1d60,      &
+&  is_complex = T, oct_increase_factor = 5.0, oct_shape = const,               &
+&  oct_pulse_max = 0.0001_Vpcm, oct_pulse_min = 0_Vpcm,                        &
+&  time_unit = ns, ampl_unit = Vpcm, id = 4, optimize = F
+
+prop: method = newton
+
+oct: iter_stop = 5000, max_ram_mb = 30000, method = krotovpk, re_init_prop = F,&
+&  iter_dat = oct_iters.dat, continue = F, J_T_conv = 5.0d-2, limit_pulses = F
+
+user_reals: start_dc_field = 2.50_Vpcm,                                        &
+&  ac_field = 0.0220_Vpcm,  ac_frequency = -250_MHz,                           &
+&  w_min_2 = -500_MHz, w_max_2 = 500_MHz, w_rise_2 = 20_MHz,                   &
+&  initial_state_m = 2, target_state_m = 51, inter_state_m = 1
+
+user_ints: central_n = 52, delta_n = 4,                                        &
+
+user_logicals: reinitialise = F, only_init = F, optimisation = F,              &
+&  write_pivots = T, write_exp_ml = T, prop_optimised = F,                     &
+&  write_pulse_2 = T, write_spec_2 = F, cut_spec_2 = F, write_q = F,           &
+&  write_bloch = F, keep_pulse_2 = F
+
+user_strings: mode = sig_rabi,                                                 &
+&  pivot_side = right, pivot_ladder = lowest,                                  &
+&  pivot_window = central_n_manifold,                                          &
+&  initial_state_position = lowest, target_state_position = lowest,            &
+&  inter_state_position = lowest
